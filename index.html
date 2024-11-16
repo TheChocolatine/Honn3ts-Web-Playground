@@ -9,6 +9,7 @@
       margin: 0;
       overflow: hidden;
       background: #111;
+      font-family: Arial, sans-serif;
     }
     canvas {
       display: block;
@@ -41,6 +42,11 @@
     input[type="range"] {
       width: 150px;
     }
+    #explosion-intensity-container {
+      display: flex;
+      flex-direction: column;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
@@ -60,7 +66,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
-    const { Engine, Render, Runner, World, Bodies, Constraint, Mouse, MouseConstraint } = Matter;
+    const { Engine, Render, Runner, World, Bodies, Constraint, Mouse, MouseConstraint, Composite, Body, Events, Vector } = Matter;
 
     const engine = Engine.create();
     const world = engine.world;
@@ -197,13 +203,33 @@
 
       World.add(world, [head, torso, leftArm, rightArm, leftLeg, rightLeg]);
       World.add(world, [headToTorso, leftArmToTorso, rightArmToTorso, leftLegToTorso, rightLegToTorso]);
+
+      // Enable ragdoll to interact with explosions
+      Events.on(engine, 'collisionStart', function(event) {
+        const pairs = event.pairs;
+        pairs.forEach(function(pair) {
+          if (pair.bodyA.label === 'explosive' || pair.bodyB.label === 'explosive') {
+            const explosion = pair.bodyA.label === 'explosive' ? pair.bodyA : pair.bodyB;
+            // Add a force to the ragdoll when an explosion is detected
+            const explosionPoint = explosion.position;
+            const forceMagnitude = 0.2;
+            [head, torso, leftArm, rightArm, leftLeg, rightLeg].forEach((bodyPart) => {
+              const force = Vector.sub(bodyPart.position, explosionPoint);
+              const magnitude = Vector.magnitude(force);
+              if (magnitude < 200) {
+                Body.applyForce(bodyPart, bodyPart.position, Vector.mult(Vector.normalise(force), forceMagnitude));
+              }
+            });
+          }
+        });
+      });
     });
 
     // Explosion
     document.getElementById('create-explosion').addEventListener('click', () => {
       const intensity = parseFloat(document.getElementById('explosion-intensity').value);
       const explosionPoint = { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight };
-      const explosionRadius = 150;
+      const explosionRadius = 200;
 
       const bodies = Matter.Composite.allBodies(world);
       bodies.forEach((body) => {
