@@ -41,19 +41,21 @@
     <button id="add-box">Add Box</button>
     <button id="add-circle">Add Circle</button>
     <button id="add-ragdoll">Add Ragdoll</button>
-    <button id="add-explosion">Explosion</button>
+    <button id="add-vehicle">Add Vehicle</button>
+    <button id="add-laser">Shoot Laser</button>
+    <button id="add-fire">Start Fire</button>
     <button id="clear-world">Clear World</button>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
-    const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Composites, Constraint } = Matter;
+    const { Engine, Render, Runner, World, Bodies, Composites, Constraint, Events, Mouse, MouseConstraint } = Matter;
 
-    // Create the engine and world
+    // Create engine and world
     const engine = Engine.create();
     const world = engine.world;
 
-    // Create the renderer
+    // Create renderer
     const render = Render.create({
       element: document.body,
       engine: engine,
@@ -66,7 +68,7 @@
     });
     Render.run(render);
 
-    // Create the runner
+    // Create runner
     const runner = Runner.create();
     Runner.run(runner, engine);
 
@@ -76,9 +78,7 @@
       mouse: mouse,
       constraint: {
         stiffness: 0.2,
-        render: {
-          visible: false,
-        },
+        render: { visible: false },
       },
     });
     World.add(world, mouseConstraint);
@@ -86,7 +86,7 @@
     // Keep the render mouse in sync
     render.mouse = mouse;
 
-    // Add boundaries (walls)
+    // Boundaries
     const boundaries = [
       Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }),
       Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }),
@@ -95,62 +95,74 @@
     ];
     World.add(world, boundaries);
 
-    // Add a box
+    // Add box
     document.getElementById('add-box').addEventListener('click', () => {
-      const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 50, 50, {
-        render: {
-          fillStyle: '#6b8e23',
-        },
-      });
+      const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, { render: { fillStyle: '#6b8e23' } });
       World.add(world, box);
     });
 
-    // Add a circle
+    // Add circle
     document.getElementById('add-circle').addEventListener('click', () => {
-      const circle = Bodies.circle(Math.random() * window.innerWidth, 50, 30, {
-        render: {
-          fillStyle: '#4682b4',
-        },
-      });
+      const circle = Bodies.circle(Math.random() * window.innerWidth, 50, 30, { render: { fillStyle: '#4682b4' } });
       World.add(world, circle);
     });
 
-    // Add Ragdoll
+    // Add ragdoll
     document.getElementById('add-ragdoll').addEventListener('click', () => {
-      const bodyParts = Composites.stack(Math.random() * window.innerWidth, 50, 1, 5, 0, 10, (x, y) => {
-        return Bodies.rectangle(x, y, 30, 30, { frictionAir: 0.01, render: { fillStyle: '#ff6347' } });
+      const ragdoll = Composites.stack(Math.random() * window.innerWidth, 50, 1, 5, 0, 10, (x, y) => {
+        return Bodies.rectangle(x, y, 30, 30, { render: { fillStyle: '#ff6347' } });
       });
-      Composites.chain(bodyParts, 0, 0, 0, 1, { stiffness: 0.1, length: 10 });
-      World.add(world, bodyParts);
+      Composites.chain(ragdoll, 0, 0.5, 0, -0.5, { stiffness: 0.5, length: 10 });
+      World.add(world, ragdoll);
     });
 
-    // Explosion force
-    document.getElementById('add-explosion').addEventListener('click', () => {
-      const explosion = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 20, {
+    // Add vehicle
+    document.getElementById('add-vehicle').addEventListener('click', () => {
+      const vehicle = Composites.car(Math.random() * window.innerWidth, 100, 100, 40, 30, { render: { fillStyle: '#999' } });
+      World.add(world, vehicle);
+    });
+
+    // Shoot laser
+    document.getElementById('add-laser').addEventListener('click', () => {
+      const laser = Bodies.rectangle(window.innerWidth / 2, 50, 300, 10, {
         isStatic: true,
-        render: { fillStyle: '#fff' },
+        render: { fillStyle: '#ff0000' },
       });
-      World.add(world, explosion);
+      World.add(world, laser);
 
-      // Apply force to simulate explosion
-      Matter.Body.applyForce(explosion, explosion.position, { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 });
+      // Remove laser after some time
+      setTimeout(() => World.remove(world, laser), 500);
     });
 
-    // Clear the world
+    // Start fire
+    document.getElementById('add-fire').addEventListener('click', () => {
+      const fire = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 20, {
+        isStatic: true,
+        render: { fillStyle: '#ff4500' },
+      });
+      World.add(world, fire);
+
+      // Spread fire effect
+      setInterval(() => {
+        const sparks = Bodies.circle(fire.position.x + Math.random() * 40 - 20, fire.position.y + Math.random() * 40 - 20, 5, {
+          render: { fillStyle: '#ffa500' },
+        });
+        World.add(world, sparks);
+        setTimeout(() => World.remove(world, sparks), 1000);
+      }, 200);
+    });
+
+    // Clear world
     document.getElementById('clear-world').addEventListener('click', () => {
-      World.clear(world, true); // Clear all objects except static
-      World.add(world, boundaries); // Re-add the boundaries
+      World.clear(world, true);
+      World.add(world, boundaries);
     });
 
-    // Handle window resizing
+    // Resize canvas on window resize
     window.addEventListener('resize', () => {
       render.canvas.width = window.innerWidth;
       render.canvas.height = window.innerHeight;
-      World.remove(world, boundaries);
-      boundaries[0] = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true });
-      boundaries[1] = Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true });
-      boundaries[2] = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true });
-      boundaries[3] = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true });
+      World.clear(world);
       World.add(world, boundaries);
     });
   </script>
