@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Ultimate People Playground</title>
+  <title>Enhanced People Playground</title>
   <style>
     body {
       margin: 0;
@@ -60,7 +60,7 @@
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
-    const { Engine, Render, Runner, World, Bodies, Events, Mouse, MouseConstraint } = Matter;
+    const { Engine, Render, Runner, World, Bodies, Constraint, Mouse, MouseConstraint } = Matter;
 
     const engine = Engine.create();
     const world = engine.world;
@@ -96,14 +96,12 @@
     ];
     World.add(world, boundaries);
 
-    // Gravity toggle state
     let gravityEnabled = true;
 
     // Add Box
     document.getElementById('add-box').addEventListener('click', () => {
       const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, {
         render: { fillStyle: '#6b8e23' },
-        label: 'box',
       });
       World.add(world, box);
     });
@@ -113,7 +111,6 @@
       const wall = Bodies.rectangle(Math.random() * window.innerWidth, 200, 200, 20, {
         isStatic: true,
         render: { fillStyle: '#555' },
-        label: 'wall',
       });
       World.add(world, wall);
     });
@@ -122,18 +119,84 @@
     document.getElementById('add-explosive').addEventListener('click', () => {
       const explosive = Bodies.circle(Math.random() * window.innerWidth, 50, 30, {
         render: { fillStyle: '#ff4500' },
-        label: 'explosive',
       });
       World.add(world, explosive);
     });
 
     // Add Ragdoll
     document.getElementById('add-ragdoll').addEventListener('click', () => {
-      const ragdoll = Bodies.circle(Math.random() * window.innerWidth, 50, 40, {
-        render: { fillStyle: '#ff6347' },
-        label: 'ragdoll',
+      const x = Math.random() * window.innerWidth;
+      const y = 100;
+
+      const head = Bodies.circle(x, y - 50, 20, {
+        render: { fillStyle: '#ffcccb' },
       });
-      World.add(world, ragdoll);
+
+      const torso = Bodies.rectangle(x, y, 40, 60, {
+        render: { fillStyle: '#8b4513' },
+      });
+
+      const leftArm = Bodies.rectangle(x - 30, y, 20, 60, {
+        render: { fillStyle: '#8b4513' },
+      });
+      const rightArm = Bodies.rectangle(x + 30, y, 20, 60, {
+        render: { fillStyle: '#8b4513' },
+      });
+
+      const leftLeg = Bodies.rectangle(x - 15, y + 70, 20, 60, {
+        render: { fillStyle: '#8b4513' },
+      });
+      const rightLeg = Bodies.rectangle(x + 15, y + 70, 20, 60, {
+        render: { fillStyle: '#8b4513' },
+      });
+
+      const headToTorso = Constraint.create({
+        bodyA: head,
+        bodyB: torso,
+        pointA: { x: 0, y: 20 },
+        pointB: { x: 0, y: -30 },
+        stiffness: 0.5,
+        length: 10,
+      });
+
+      const leftArmToTorso = Constraint.create({
+        bodyA: leftArm,
+        bodyB: torso,
+        pointA: { x: 0, y: -30 },
+        pointB: { x: -20, y: -20 },
+        stiffness: 0.5,
+        length: 10,
+      });
+
+      const rightArmToTorso = Constraint.create({
+        bodyA: rightArm,
+        bodyB: torso,
+        pointA: { x: 0, y: -30 },
+        pointB: { x: 20, y: -20 },
+        stiffness: 0.5,
+        length: 10,
+      });
+
+      const leftLegToTorso = Constraint.create({
+        bodyA: leftLeg,
+        bodyB: torso,
+        pointA: { x: 0, y: -30 },
+        pointB: { x: -10, y: 30 },
+        stiffness: 0.5,
+        length: 10,
+      });
+
+      const rightLegToTorso = Constraint.create({
+        bodyA: rightLeg,
+        bodyB: torso,
+        pointA: { x: 0, y: -30 },
+        pointB: { x: 10, y: 30 },
+        stiffness: 0.5,
+        length: 10,
+      });
+
+      World.add(world, [head, torso, leftArm, rightArm, leftLeg, rightLeg]);
+      World.add(world, [headToTorso, leftArmToTorso, rightArmToTorso, leftLegToTorso, rightLegToTorso]);
     });
 
     // Explosion
@@ -150,14 +213,6 @@
           Matter.Body.applyForce(body, body.position, force);
         }
       });
-
-      // Add visual effects for explosion
-      const explosion = Bodies.circle(explosionPoint.x, explosionPoint.y, explosionRadius / 2, {
-        isStatic: true,
-        render: { fillStyle: 'rgba(255, 0, 0, 0.5)' },
-      });
-      World.add(world, explosion);
-      setTimeout(() => World.remove(world, explosion), 500);
     });
 
     // Toggle Gravity
