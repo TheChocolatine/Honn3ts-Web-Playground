@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>People Playground Web App</title>
+  <title>Enhanced People Playground</title>
   <style>
     body {
       margin: 0;
@@ -18,15 +18,19 @@
       top: 10px;
       left: 10px;
       z-index: 10;
-      background: rgba(0, 0, 0, 0.7);
-      padding: 10px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 15px;
       border-radius: 10px;
+      color: white;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
     }
     button {
       background: #444;
       color: white;
       border: none;
-      padding: 10px 15px;
+      padding: 10px;
       margin: 5px;
       cursor: pointer;
       border-radius: 5px;
@@ -39,11 +43,11 @@
 <body>
   <div id="toolbar">
     <button id="add-box">Add Box</button>
-    <button id="add-circle">Add Circle</button>
-    <button id="add-ragdoll">Add Ragdoll</button>
-    <button id="add-vehicle">Add Vehicle</button>
-    <button id="add-laser">Shoot Laser</button>
+    <button id="add-glass">Add Glass</button>
+    <button id="add-cannon">Add Cannon</button>
     <button id="add-fire">Start Fire</button>
+    <button id="create-gravity-zone">Gravity Zone</button>
+    <button id="add-ragdoll">Add Ragdoll</button>
     <button id="clear-world">Clear World</button>
   </div>
 
@@ -51,11 +55,9 @@
   <script>
     const { Engine, Render, Runner, World, Bodies, Composites, Constraint, Events, Mouse, MouseConstraint } = Matter;
 
-    // Create engine and world
     const engine = Engine.create();
     const world = engine.world;
 
-    // Create renderer
     const render = Render.create({
       element: document.body,
       engine: engine,
@@ -68,25 +70,18 @@
     });
     Render.run(render);
 
-    // Create runner
     const runner = Runner.create();
     Runner.run(runner, engine);
 
-    // Add mouse control
     const mouse = Mouse.create(render.canvas);
     const mouseConstraint = MouseConstraint.create(engine, {
       mouse: mouse,
-      constraint: {
-        stiffness: 0.2,
-        render: { visible: false },
-      },
+      constraint: { stiffness: 0.2, render: { visible: false } },
     });
     World.add(world, mouseConstraint);
 
-    // Keep the render mouse in sync
     render.mouse = mouse;
 
-    // Boundaries
     const boundaries = [
       Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }),
       Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }),
@@ -95,46 +90,41 @@
     ];
     World.add(world, boundaries);
 
-    // Add box
     document.getElementById('add-box').addEventListener('click', () => {
-      const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, { render: { fillStyle: '#6b8e23' } });
+      const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, {
+        render: { fillStyle: '#6b8e23' },
+        label: 'box',
+      });
       World.add(world, box);
     });
 
-    // Add circle
-    document.getElementById('add-circle').addEventListener('click', () => {
-      const circle = Bodies.circle(Math.random() * window.innerWidth, 50, 30, { render: { fillStyle: '#4682b4' } });
-      World.add(world, circle);
-    });
-
-    // Add ragdoll
-    document.getElementById('add-ragdoll').addEventListener('click', () => {
-      const ragdoll = Composites.stack(Math.random() * window.innerWidth, 50, 1, 5, 0, 10, (x, y) => {
-        return Bodies.rectangle(x, y, 30, 30, { render: { fillStyle: '#ff6347' } });
+    document.getElementById('add-glass').addEventListener('click', () => {
+      const glass = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, {
+        render: { fillStyle: 'rgba(173, 216, 230, 0.6)' },
+        label: 'glass',
       });
-      Composites.chain(ragdoll, 0, 0.5, 0, -0.5, { stiffness: 0.5, length: 10 });
-      World.add(world, ragdoll);
+      glass.collisionFilter.group = -1; // Reduce collision for fragile objects
+      World.add(world, glass);
     });
 
-    // Add vehicle
-    document.getElementById('add-vehicle').addEventListener('click', () => {
-      const vehicle = Composites.car(Math.random() * window.innerWidth, 100, 100, 40, 30, { render: { fillStyle: '#999' } });
-      World.add(world, vehicle);
-    });
-
-    // Shoot laser
-    document.getElementById('add-laser').addEventListener('click', () => {
-      const laser = Bodies.rectangle(window.innerWidth / 2, 50, 300, 10, {
+    document.getElementById('add-cannon').addEventListener('click', () => {
+      const cannon = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 100, 100, 40, {
+        render: { fillStyle: '#999' },
         isStatic: true,
-        render: { fillStyle: '#ff0000' },
+        label: 'cannon',
       });
-      World.add(world, laser);
+      World.add(world, cannon);
 
-      // Remove laser after some time
-      setTimeout(() => World.remove(world, laser), 500);
+      setInterval(() => {
+        const projectile = Bodies.circle(cannon.position.x + 50, cannon.position.y, 15, {
+          render: { fillStyle: '#ff0000' },
+        });
+        World.add(world, projectile);
+        Matter.Body.applyForce(projectile, projectile.position, { x: 0.05, y: -0.05 });
+        setTimeout(() => World.remove(world, projectile), 3000);
+      }, 2000);
     });
 
-    // Start fire
     document.getElementById('add-fire').addEventListener('click', () => {
       const fire = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 20, {
         isStatic: true,
@@ -142,28 +132,41 @@
       });
       World.add(world, fire);
 
-      // Spread fire effect
       setInterval(() => {
-        const sparks = Bodies.circle(fire.position.x + Math.random() * 40 - 20, fire.position.y + Math.random() * 40 - 20, 5, {
+        const spark = Bodies.circle(fire.position.x + Math.random() * 40 - 20, fire.position.y + Math.random() * 40 - 20, 5, {
           render: { fillStyle: '#ffa500' },
         });
-        World.add(world, sparks);
-        setTimeout(() => World.remove(world, sparks), 1000);
+        World.add(world, spark);
+        setTimeout(() => World.remove(world, spark), 1000);
       }, 200);
     });
 
-    // Clear world
+    document.getElementById('create-gravity-zone').addEventListener('click', () => {
+      const gravityZone = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 100, {
+        isStatic: true,
+        render: { fillStyle: 'rgba(0, 0, 255, 0.3)' },
+        label: 'gravityZone',
+      });
+      World.add(world, gravityZone);
+
+      Events.on(engine, 'beforeUpdate', () => {
+        const objects = Matter.Composite.allBodies(world);
+        objects.forEach((object) => {
+          if (Matter.SAT.collides(object, gravityZone).collided) {
+            Matter.Body.applyForce(object, object.position, { x: 0, y: -0.05 });
+          }
+        });
+      });
+    });
+
     document.getElementById('clear-world').addEventListener('click', () => {
       World.clear(world, true);
       World.add(world, boundaries);
     });
 
-    // Resize canvas on window resize
     window.addEventListener('resize', () => {
       render.canvas.width = window.innerWidth;
       render.canvas.height = window.innerHeight;
-      World.clear(world);
-      World.add(world, boundaries);
     });
   </script>
 </body>
