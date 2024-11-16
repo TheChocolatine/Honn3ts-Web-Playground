@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>People Playground Web App</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background: #111;
+    }
+    canvas {
+      display: block;
+    }
+    #toolbar {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      z-index: 10;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 10px;
+      border-radius: 10px;
+    }
+    button {
+      background: #444;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      margin: 5px;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background: #666;
+    }
+  </style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="add-box">Add Box</button>
+    <button id="add-circle">Add Circle</button>
+    <button id="add-ragdoll">Add Ragdoll</button>
+    <button id="add-explosion">Explosion</button>
+    <button id="clear-world">Clear World</button>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <script>
+    const { Engine, Render, Runner, World, Bodies, Mouse, MouseConstraint, Composites, Constraint } = Matter;
+
+    // Create the engine and world
+    const engine = Engine.create();
+    const world = engine.world;
+
+    // Create the renderer
+    const render = Render.create({
+      element: document.body,
+      engine: engine,
+      options: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+        wireframes: false,
+        background: '#222',
+      },
+    });
+    Render.run(render);
+
+    // Create the runner
+    const runner = Runner.create();
+    Runner.run(runner, engine);
+
+    // Add mouse control
+    const mouse = Mouse.create(render.canvas);
+    const mouseConstraint = MouseConstraint.create(engine, {
+      mouse: mouse,
+      constraint: {
+        stiffness: 0.2,
+        render: {
+          visible: false,
+        },
+      },
+    });
+    World.add(world, mouseConstraint);
+
+    // Keep the render mouse in sync
+    render.mouse = mouse;
+
+    // Add boundaries (walls)
+    const boundaries = [
+      Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true }),
+      Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true }),
+      Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }),
+      Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true }),
+    ];
+    World.add(world, boundaries);
+
+    // Add a box
+    document.getElementById('add-box').addEventListener('click', () => {
+      const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 50, 50, {
+        render: {
+          fillStyle: '#6b8e23',
+        },
+      });
+      World.add(world, box);
+    });
+
+    // Add a circle
+    document.getElementById('add-circle').addEventListener('click', () => {
+      const circle = Bodies.circle(Math.random() * window.innerWidth, 50, 30, {
+        render: {
+          fillStyle: '#4682b4',
+        },
+      });
+      World.add(world, circle);
+    });
+
+    // Add Ragdoll
+    document.getElementById('add-ragdoll').addEventListener('click', () => {
+      const bodyParts = Composites.stack(Math.random() * window.innerWidth, 50, 1, 5, 0, 10, (x, y) => {
+        return Bodies.rectangle(x, y, 30, 30, { frictionAir: 0.01, render: { fillStyle: '#ff6347' } });
+      });
+      Composites.chain(bodyParts, 0, 0, 0, 1, { stiffness: 0.1, length: 10 });
+      World.add(world, bodyParts);
+    });
+
+    // Explosion force
+    document.getElementById('add-explosion').addEventListener('click', () => {
+      const explosion = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 20, {
+        isStatic: true,
+        render: { fillStyle: '#fff' },
+      });
+      World.add(world, explosion);
+
+      // Apply force to simulate explosion
+      Matter.Body.applyForce(explosion, explosion.position, { x: Math.random() * 0.1 - 0.05, y: Math.random() * 0.1 - 0.05 });
+    });
+
+    // Clear the world
+    document.getElementById('clear-world').addEventListener('click', () => {
+      World.clear(world, true); // Clear all objects except static
+      World.add(world, boundaries); // Re-add the boundaries
+    });
+
+    // Handle window resizing
+    window.addEventListener('resize', () => {
+      render.canvas.width = window.innerWidth;
+      render.canvas.height = window.innerHeight;
+      World.remove(world, boundaries);
+      boundaries[0] = Bodies.rectangle(window.innerWidth / 2, window.innerHeight + 25, window.innerWidth, 50, { isStatic: true });
+      boundaries[1] = Bodies.rectangle(window.innerWidth / 2, -25, window.innerWidth, 50, { isStatic: true });
+      boundaries[2] = Bodies.rectangle(-25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true });
+      boundaries[3] = Bodies.rectangle(window.innerWidth + 25, window.innerHeight / 2, 50, window.innerHeight, { isStatic: true });
+      World.add(world, boundaries);
+    });
+  </script>
+</body>
+</html>
