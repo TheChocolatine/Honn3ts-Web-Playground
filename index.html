@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Enhanced People Playground</title>
+  <title>Ultimate People Playground</title>
   <style>
     body {
       margin: 0;
@@ -18,7 +18,7 @@
       top: 10px;
       left: 10px;
       z-index: 10;
-      background: rgba(0, 0, 0, 0.8);
+      background: rgba(0, 0, 0, 0.9);
       padding: 15px;
       border-radius: 10px;
       color: white;
@@ -38,22 +38,29 @@
     button:hover {
       background: #666;
     }
+    input[type="range"] {
+      width: 150px;
+    }
   </style>
 </head>
 <body>
   <div id="toolbar">
     <button id="add-box">Add Box</button>
-    <button id="add-glass">Add Glass</button>
-    <button id="add-cannon">Add Cannon</button>
-    <button id="add-fire">Start Fire</button>
-    <button id="create-gravity-zone">Gravity Zone</button>
+    <button id="add-wall">Add Wall</button>
+    <button id="add-explosive">Add Explosive</button>
     <button id="add-ragdoll">Add Ragdoll</button>
+    <button id="create-explosion">Explosion</button>
+    <button id="toggle-gravity">Toggle Gravity</button>
     <button id="clear-world">Clear World</button>
+    <div>
+      <label for="explosion-intensity">Explosion Intensity</label>
+      <input id="explosion-intensity" type="range" min="0.1" max="5" step="0.1" value="1">
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
   <script>
-    const { Engine, Render, Runner, World, Bodies, Composites, Constraint, Events, Mouse, MouseConstraint } = Matter;
+    const { Engine, Render, Runner, World, Bodies, Events, Mouse, MouseConstraint } = Matter;
 
     const engine = Engine.create();
     const world = engine.world;
@@ -79,7 +86,6 @@
       constraint: { stiffness: 0.2, render: { visible: false } },
     });
     World.add(world, mouseConstraint);
-
     render.mouse = mouse;
 
     const boundaries = [
@@ -90,6 +96,10 @@
     ];
     World.add(world, boundaries);
 
+    // Gravity toggle state
+    let gravityEnabled = true;
+
+    // Add Box
     document.getElementById('add-box').addEventListener('click', () => {
       const box = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, {
         render: { fillStyle: '#6b8e23' },
@@ -98,67 +108,65 @@
       World.add(world, box);
     });
 
-    document.getElementById('add-glass').addEventListener('click', () => {
-      const glass = Bodies.rectangle(Math.random() * window.innerWidth, 50, 60, 60, {
-        render: { fillStyle: 'rgba(173, 216, 230, 0.6)' },
-        label: 'glass',
+    // Add Wall
+    document.getElementById('add-wall').addEventListener('click', () => {
+      const wall = Bodies.rectangle(Math.random() * window.innerWidth, 200, 200, 20, {
+        isStatic: true,
+        render: { fillStyle: '#555' },
+        label: 'wall',
       });
-      glass.collisionFilter.group = -1; // Reduce collision for fragile objects
-      World.add(world, glass);
+      World.add(world, wall);
     });
 
-    document.getElementById('add-cannon').addEventListener('click', () => {
-      const cannon = Bodies.rectangle(window.innerWidth / 2, window.innerHeight - 100, 100, 40, {
-        render: { fillStyle: '#999' },
-        isStatic: true,
-        label: 'cannon',
-      });
-      World.add(world, cannon);
-
-      setInterval(() => {
-        const projectile = Bodies.circle(cannon.position.x + 50, cannon.position.y, 15, {
-          render: { fillStyle: '#ff0000' },
-        });
-        World.add(world, projectile);
-        Matter.Body.applyForce(projectile, projectile.position, { x: 0.05, y: -0.05 });
-        setTimeout(() => World.remove(world, projectile), 3000);
-      }, 2000);
-    });
-
-    document.getElementById('add-fire').addEventListener('click', () => {
-      const fire = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 20, {
-        isStatic: true,
+    // Add Explosive
+    document.getElementById('add-explosive').addEventListener('click', () => {
+      const explosive = Bodies.circle(Math.random() * window.innerWidth, 50, 30, {
         render: { fillStyle: '#ff4500' },
+        label: 'explosive',
       });
-      World.add(world, fire);
-
-      setInterval(() => {
-        const spark = Bodies.circle(fire.position.x + Math.random() * 40 - 20, fire.position.y + Math.random() * 40 - 20, 5, {
-          render: { fillStyle: '#ffa500' },
-        });
-        World.add(world, spark);
-        setTimeout(() => World.remove(world, spark), 1000);
-      }, 200);
+      World.add(world, explosive);
     });
 
-    document.getElementById('create-gravity-zone').addEventListener('click', () => {
-      const gravityZone = Bodies.circle(Math.random() * window.innerWidth, Math.random() * window.innerHeight, 100, {
+    // Add Ragdoll
+    document.getElementById('add-ragdoll').addEventListener('click', () => {
+      const ragdoll = Bodies.circle(Math.random() * window.innerWidth, 50, 40, {
+        render: { fillStyle: '#ff6347' },
+        label: 'ragdoll',
+      });
+      World.add(world, ragdoll);
+    });
+
+    // Explosion
+    document.getElementById('create-explosion').addEventListener('click', () => {
+      const intensity = parseFloat(document.getElementById('explosion-intensity').value);
+      const explosionPoint = { x: Math.random() * window.innerWidth, y: Math.random() * window.innerHeight };
+      const explosionRadius = 150;
+
+      const bodies = Matter.Composite.allBodies(world);
+      bodies.forEach((body) => {
+        const distance = Matter.Vector.magnitude(Matter.Vector.sub(body.position, explosionPoint));
+        if (distance < explosionRadius) {
+          const force = Matter.Vector.mult(Matter.Vector.normalise(Matter.Vector.sub(body.position, explosionPoint)), intensity);
+          Matter.Body.applyForce(body, body.position, force);
+        }
+      });
+
+      // Add visual effects for explosion
+      const explosion = Bodies.circle(explosionPoint.x, explosionPoint.y, explosionRadius / 2, {
         isStatic: true,
-        render: { fillStyle: 'rgba(0, 0, 255, 0.3)' },
-        label: 'gravityZone',
+        render: { fillStyle: 'rgba(255, 0, 0, 0.5)' },
       });
-      World.add(world, gravityZone);
-
-      Events.on(engine, 'beforeUpdate', () => {
-        const objects = Matter.Composite.allBodies(world);
-        objects.forEach((object) => {
-          if (Matter.SAT.collides(object, gravityZone).collided) {
-            Matter.Body.applyForce(object, object.position, { x: 0, y: -0.05 });
-          }
-        });
-      });
+      World.add(world, explosion);
+      setTimeout(() => World.remove(world, explosion), 500);
     });
 
+    // Toggle Gravity
+    document.getElementById('toggle-gravity').addEventListener('click', () => {
+      gravityEnabled = !gravityEnabled;
+      engine.world.gravity.y = gravityEnabled ? 1 : 0;
+    });
+
+    // Clear World
     document.getElementById('clear-world').addEventListener('click', () => {
       World.clear(world, true);
       World.add(world, boundaries);
